@@ -450,7 +450,7 @@ func TestReadInConfig(t *testing.T) {
 		_, err = file.Write([]byte(`key: value`))
 		require.NoError(t, err)
 
-		file.Close()
+		require.NoError(t, file.Close())
 
 		v := New()
 
@@ -475,7 +475,7 @@ func TestReadInConfig(t *testing.T) {
 		_, err = file.Write([]byte(`key: value`))
 		require.NoError(t, err)
 
-		file.Close()
+		require.NoError(t, file.Close())
 
 		v := New()
 
@@ -507,7 +507,7 @@ func TestUnmarshaling(t *testing.T) {
 	SetConfigType("yaml")
 	r := bytes.NewReader(yamlExample)
 
-	unmarshalReader(r, v.config)
+	require.NoError(t, unmarshalReader(r, v.config))
 	assert.True(t, InConfig("name"))
 	assert.True(t, InConfig("clothing.jacket"))
 	assert.False(t, InConfig("state"))
@@ -2615,6 +2615,27 @@ func TestSliceIndexAccess(t *testing.T) {
 
 	// Accessing multidimensional arrays
 	assert.Equal(t, "Static", v.GetString("tv.0.episodes.1.2"))
+}
+
+func Test_Sub_DoesNotDropsFirstChildFromParent_GivenSet(t *testing.T) {
+	config := New()
+	config.SetConfigType("yaml")
+	r := strings.NewReader(`
+Parent:
+  FirstChild: FirstValue
+`)
+	err := config.ReadConfig(r)
+	require.NoError(t, err)
+
+	require.Equal(t, "FirstValue", config.GetString("Parent.FirstChild"))
+
+	config.Set("Parent.SecondChild", "SecondValue")
+	assert.Equal(t, "FirstValue", config.GetString("Parent.FirstChild"))
+	assert.Equal(t, "SecondValue", config.GetString("Parent.SecondChild"))
+
+	childrenConfig := config.Sub("Parent")
+	assert.Equal(t, "FirstValue", childrenConfig.GetString("FirstChild"))
+	assert.Equal(t, "SecondValue", childrenConfig.GetString("SecondChild"))
 }
 
 func BenchmarkGetBool(b *testing.B) {
